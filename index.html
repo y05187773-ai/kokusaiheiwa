@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>よこはま子ども国際平和スピーチコンテスト 評価支援</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* --- 印刷用（PDF出力用）の厳格な設定 --- */
+    @media print {
+      @page { 
+        size: A4; 
+        margin: 15mm; /* A4用紙の標準的な余白 */
+      }
+      body { 
+        background-color: white !important; 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+      }
+      .print-hidden { 
+        display: none !important; 
+      }
+      .print-page { 
+        page-break-after: always !important; /* 確実に改ページ */
+        break-after: page !important;
+        position: relative;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: white !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      /* 最後のページは改ページしない */
+      .print-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+    }
+    
+    /* モーダル表示時の背景固定 */
+    body.modal-open { overflow: hidden; }
+  </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 print:bg-white print:p-0 p-4 md:p-8 min-h-screen">
+
+  <!-- 画面用ヘッダー -->
+  <div class="max-w-7xl mx-auto print-hidden">
+    <header class="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-1">
+          <div class="bg-slate-900 text-white p-2 rounded-lg">
+            <i data-lucide="users" class="w-6 h-6"></i>
+          </div>
+          <h1 class="text-3xl font-black text-slate-900 tracking-tight uppercase">審査管理ダッシュボード</h1>
+        </div>
+        <p class="text-slate-500 text-sm font-bold">よこはま子ども国際平和スピーチコンテスト 校内選考システム</p>
+      </div>
+      <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+        <button onclick="downloadWorksheet()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition shadow-md font-bold text-sm">
+          <i data-lucide="file-down" class="w-4 h-4"></i> ワークシート配布用
+        </button>
+        <button onclick="window.print()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md font-bold text-sm">
+          <i data-lucide="printer" class="w-4 h-4"></i> PDF出力 / 印刷
+        </button>
+        <button onclick="handleClearData()" class="flex-1 md:flex-none flex items-center justify-center gap-2 text-red-600 bg-white border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50 transition shadow-sm font-bold text-sm">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> データ初期化
+        </button>
+      </div>
+    </header>
+
+    <!-- データ投入エリア -->
+    <div class="mb-8 shadow-xl bg-white rounded-xl overflow-hidden print-hidden">
+      <div class="bg-blue-600 h-2 w-full"></div>
+      <div class="p-4 md:p-6 pb-2 border-b border-slate-100 flex justify-between items-center">
+        <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+          <i data-lucide="database" class="w-5 h-5 text-blue-600"></i> AI評価データ（JSON）インポート
+        </h2>
+        <span id="importMessage" class="text-sm font-bold text-green-600 transition-opacity duration-500 opacity-0"></span>
+      </div>
+      <div class="p-4 md:p-6 pt-4 bg-slate-50">
+        <div id="errorMessage" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4"></i> <span id="errorText"></span>
+        </div>
+        <textarea id="jsonInput" class="w-full h-32 p-4 bg-white border border-slate-300 font-mono text-xs rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-400 transition-all text-slate-700 shadow-inner" placeholder="【使い方】AIが出力したJSONテキストをここに貼り付けてください（複数人分一括OK）。Markdownタグが付いたままでも自動で処理されます。"></textarea>
+        <button id="importBtn" onclick="handleLoadData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
+          <i data-lucide="check-circle" class="w-5 h-5"></i> データを解析してリストに反映
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto">
+    
+    <!-- 空の状態 -->
+    <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-slate-400 print-hidden bg-white rounded-2xl border border-dashed border-slate-300">
+      <i data-lucide="file-json-2" class="w-16 h-16 mb-4 opacity-30"></i>
+      <p class="font-bold tracking-widest text-sm text-slate-500">評価データをインポートして審査を開始してください</p>
+    </div>
+
+    <!-- コンテンツエリア -->
+    <div id="contentArea" class="hidden space-y-8 print:space-y-0">
+      
+      <!-- ランキング一覧（画面用のみ） -->
+      <div class="print-hidden shadow-lg bg-white rounded-2xl overflow-hidden border border-slate-200">
+        <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
+          <h3 class="font-bold flex items-center gap-2"><i data-lucide="trending-up" class="w-4 h-4 text-blue-400"></i> 一次審査 ランキング一覧</h3>
+          <span class="text-xs font-bold bg-slate-700 px-3 py-1 rounded-full" id="totalCount">Total: 0名</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b bg-slate-50">
+                <th class="p-4">Rank</th>
+                <th class="p-4">氏名 / 題名</th>
+                <th class="p-4 text-center">Score</th>
+                <th class="p-4">審査員講評</th>
+                <th class="p-4">AI Risk</th>
+              </tr>
+            </thead>
+            <tbody id="rankingTableBody">
+              <!-- JSで挿入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 個人別 審査用シートコンテナ（印刷時はここだけが出力される） -->
+      <div id="sheetsContainer" class="space-y-12 print:space-y-0 print:block">
+        <!-- JSで挿入 -->
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- 原文表示モーダル（画面用） -->
+  <div id="textModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4 print-hidden" onclick="hideModal()">
+    <div class="bg-white w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 md:p-6 border-b flex justify-between items-center bg-slate-50">
+        <div>
+          <h3 id="modalName" class="text-xl font-black text-slate-900"></h3>
+          <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Speech Original Transcript</p>
+        </div>
+        <button onclick="hideModal()" class="p-2 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition"><i data-lucide="x" class="w-6 h-6"></i></button>
+      </div>
+      <div class="p-6 md:p-10 overflow-y-auto bg-white flex-1">
+        <p id="modalText" class="text-slate-800 leading-loose text-base md:text-lg whitespace-pre-wrap font-serif text-justify"></p>
+      </div>
+      <div class="p-4 border-t bg-slate-50 text-center">
+        <button onclick="hideModal()" class="px-6 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900 transition shadow-md">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 状態管理 ---
+    let dataList = [];
+    
+    // --- 初期化 ---
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      const input = document.getElementById('jsonInput');
+      const btn = document.getElementById('importBtn');
+      input.addEventListener('input', () => {
+        btn.disabled = input.value.trim() === '';
+      });
+    });
+
+    // --- ワークシートダウンロード機能 ---
+    function downloadWorksheet() {
+      const template = `令和8年度 よこはま子ども国際平和スピーチコンテスト
+--------------------------------------------------
+
+【氏名】 （ここに名前を書いてください）
+【題名】 （ここにスピーチのタイトルを書いてください）
+【SDGs目標番号】 （1〜17の番号を書いてください）
+
+--------------------------------------------------
+【本文】
+（ここから下に、スピーチの原稿を書いてください。文字数の目安は約900〜1200文字、時間にして約3分間です。）
+
+
+
+
+
+
+`;
+      const blob = new Blob([template], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'スピーチ入力用ワークシート.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- データインポート処理 ---
+    function handleLoadData() {
+      const inputEl = document.getElementById('jsonInput');
+      const errorBox = document.getElementById('errorMessage');
+      const errorText = document.getElementById('errorText');
+      const btn = document.getElementById('importBtn');
+      
+      errorBox.classList.add('hidden');
+      
+      try {
+        let input = inputEl.value.trim();
+        if (!input) return;
+
+        // Markdownタグの除去
+        input = input.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        // 末尾カンマの除去
+        const cleanJsonStr = (str) => {
+          return str.replace(/,\s*([\]}])/g, '$1');
+        };
+
+        let newItems = [];
+
+        try {
+          const cleanedFullInput = cleanJsonStr(input);
+          const parsed = JSON.parse(cleanedFullInput);
+          newItems = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          // 個別のブロック抽出（複数人のデータを一気に貼った場合のフォールバック）
+          const jsonBlocks = input.match(/\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/g);
+          if (jsonBlocks) {
+            newItems = jsonBlocks.map(block => {
+              try {
+                return JSON.parse(cleanJsonStr(block.trim()));
+              } catch (blockError) {
+                return null;
+              }
+            }).filter(item => item !== null);
+          }
+        }
+
+        if (newItems.length === 0) {
+          throw new Error('有効なデータが見つかりませんでした。AIの出力形式を確認してください。');
+        }
+
+        let addedCount = 0;
+        let updatedCount = 0;
+
+        newItems.forEach(item => {
+          if (!item.student_name) return; // 名前がないデータは無視
+          const idx = dataList.findIndex(d => d.student_name === item.student_name);
+          if (idx > -1) {
+            dataList[idx] = item;
+            updatedCount++;
+          } else {
+            dataList.push(item);
+            addedCount++;
+          }
+        });
+
+        // スコア降順でソート
+        dataList.sort((a, b) => (b.scores?.total || 0) - (a.scores?.total || 0));
+        
+        renderUI();
+        showImportMessage(`${addedCount}件を追加、${updatedCount}件を更新しました。`);
+        
+        inputEl.value = '';
+        btn.disabled = true;
+
+      } catch (e) {
+        errorText.textContent = `エラー: ${e.message}`;
+        errorBox.classList.remove('hidden');
+      }
+    }
+
+    // --- データクリア処理 ---
+    function handleClearData() {
+      if (dataList.length === 0) {
+        alert('削除するデータがありません。');
+        return;
+      }
+      if (confirm('リストにあるすべてのデータを初期化しますか？\n（※印刷していないデータは失われます）')) {
+        dataList = [];
+        renderUI();
+        document.getElementById('errorMessage').classList.add('hidden');
+      }
+    }
+
+    // --- トーストメッセージ ---
+    function showImportMessage(msg) {
+      const el = document.getElementById('importMessage');
+      el.textContent = msg;
+      el.classList.remove('opacity-0');
+      setTimeout(() => {
+        el.classList.add('opacity-0');
+      }, 4000);
+    }
+
+    // --- ユーティリティ ---
+    const getAiRiskColor = (risk) => {
+      const r = String(risk).toLowerCase();
+      if (r.includes('high')) return 'text-red-600 bg-red-50 border-red-200';
+      if (r.includes('medium')) return 'text-orange-600 bg-orange-50 border-orange-200';
+      return 'text-green-600 bg-green-50 border-green-200';
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // --- レンダリング処理 ---
+    function renderUI() {
+      const emptyState = document.getElementById('emptyState');
+      const contentArea = document.getElementById('contentArea');
+      
+      if (dataList.length === 0) {
+        emptyState.classList.remove('hidden');
+        contentArea.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      contentArea.classList.remove('hidden');
+      
+      document.getElementById('totalCount').textContent = `Total: ${dataList.length}名`;
+
+      renderRankingTable();
+      renderSheets();
+      
+      // アイコンの再描画
+      lucide.createIcons();
+    }
+
+    function renderRankingTable() {
+      const tbody = document.getElementById('rankingTableBody');
+      tbody.innerHTML = '';
+
+      dataList.forEach((item, i) => {
+        const rankStr = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+        const rowClass = i === 0 ? 'bg-yellow-50/20' : 'bg-white';
+        
+        const tr = document.createElement('tr');
+        tr.className = `border-b border-slate-100 hover:bg-blue-50/30 transition ${rowClass}`;
+        
+        const shortReview = escapeHtml(item.feedback?.critical_review || '').substring(0, 40) + '...';
+
+        tr.innerHTML = `
+          <td class="p-4 font-black text-lg text-slate-500">${rankStr}</td>
+          <td class="p-4">
+            <div class="font-bold text-slate-900 text-sm md:text-base">${escapeHtml(item.student_name)}</div>
+            <div class="text-[10px] text-slate-500 truncate max-w-[250px] font-bold">『${escapeHtml(item.title)}』</div>
+          </td>
+          <td class="p-4 text-center">
+            <span class="text-xl font-black text-blue-700">${item.scores?.total || 0}</span>
+          </td>
+          <td class="p-4">
+            <div class="text-xs text-slate-600 italic">${shortReview}</div>
+            <button onclick="showModal(${i})" class="mt-1 text-[10px] text-blue-600 hover:text-blue-800 font-bold underline flex items-center gap-1">
+              <i data-lucide="file-text" class="w-3 h-3"></i> 原文を読む
+            </button>
+          </td>
+          <td class="p-4">
+            <span class="text-[10px] px-2 py-1 rounded-full border ${getAiRiskColor(item.status?.ai_risk)} font-bold shadow-sm">${escapeHtml(item.status?.ai_risk || 'N/A')}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // --- PDF印刷用の1ページごとのシート生成 ---
+    function renderSheets() {
+      const container = document.getElementById('sheetsContainer');
+      container.innerHTML = '';
+
+      dataList.forEach((item, i) => {
+        const sheet = document.createElement('div');
+        // print-page クラスで印刷時に必ず独立した1ページになるようにする
+        sheet.className = "print-page bg-white p-8 rounded-2xl shadow-xl border border-slate-200 relative";
+        
+        // 原文フォーマット（改行を <br> に変換）
+        let originalTextHtml = '<span class="text-slate-400 italic text-center block mt-10">原文データがありません。プロンプトを更新して再解析してください。</span>';
+        if (item.original_text) {
+          originalTextHtml = escapeHtml(item.original_text).replace(/\n/g, '<br/>');
+        }
+
+        sheet.innerHTML = `
+          <!-- 【印刷用 公式ヘッダー】 -->
+          <div class="border-b-[3px] border-black pb-3 mb-5 flex justify-between items-end">
+            <div>
+              <p class="text-xs font-bold text-slate-600 tracking-widest mb-1">令和8年度 よこはま子ども国際平和スピーチコンテスト</p>
+              <h2 class="text-2xl font-black text-black tracking-tight">校内選考 個人審査シート</h2>
+            </div>
+            <div class="text-right pb-1">
+              <p class="text-xs border border-black px-4 py-1 font-bold inline-block bg-slate-50 print:bg-white">整理番号： ${String(i + 1).padStart(3, '0')}</p>
+            </div>
+          </div>
+
+          <!-- 【児童情報 ＆ AIスコア】 -->
+          <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <!-- 基本情報 -->
+            <div class="flex-1 bg-white border border-slate-300 p-4 rounded-lg shadow-sm print:shadow-none">
+              <div class="flex items-center gap-4 mb-3 pb-3 border-b border-dotted border-slate-300">
+                <div class="w-16 text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded text-center">氏名</div>
+                <div class="text-xl font-black text-black tracking-widest">${escapeHtml(item.student_name)}</div>
+              </div>
+              <div class="flex items-center gap-4 mb-3 pb-3 border-b border-dotted border-slate-300">
+                <div class="w-16 text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded text-center">題名</div>
+                <div class="text-base font-bold text-black">${escapeHtml(item.title)}</div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="w-16 text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded text-center">SDGs</div>
+                <div class="text-sm font-bold text-black">目標 ${escapeHtml(item.sdgs_goal)}</div>
+              </div>
+            </div>
+
+            <!-- AI一次スコア -->
+            <div class="w-full md:w-56 border-2 border-slate-800 p-3 rounded-lg bg-slate-50 print:bg-white flex flex-col justify-center">
+              <div class="text-center mb-1">
+                <span class="text-[10px] font-black text-slate-800 tracking-widest">AI一次評価（参考値）</span>
+              </div>
+              <div class="text-center border-b-2 border-slate-200 pb-1 mb-2">
+                <span class="text-4xl font-black text-blue-700 print:text-black">${item.scores?.total || 0}</span><span class="text-xs text-slate-500 font-bold">/300</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1 text-center text-xs">
+                <div class="border-r border-slate-300">
+                  <div class="text-[8px] text-slate-500 font-bold">テーマ</div>
+                  <div class="font-black text-sm text-black">${item.scores?.theme || 0}<span class="text-[7px] text-slate-400">/100</span></div>
+                </div>
+                <div class="border-r border-slate-300">
+                  <div class="text-[8px] text-slate-500 font-bold">具体性</div>
+                  <div class="font-black text-sm text-black">${item.scores?.action || 0}<span class="text-[7px] text-slate-400">/100</span></div>
+                </div>
+                <div>
+                  <div class="text-[8px] text-slate-500 font-bold">表現力</div>
+                  <div class="font-black text-sm text-black">${item.scores?.expression || 0}<span class="text-[7px] text-slate-400">/100</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 【評価サマリー（AI）】 -->
+          <div class="mb-6 border border-slate-300 rounded-lg overflow-hidden shadow-sm print:shadow-none">
+            <div class="bg-slate-800 print:bg-slate-200 print:text-black text-white p-1.5 border-b border-slate-300 font-bold text-[11px] text-center tracking-widest">
+              AI審査員 講評（強みと課題）
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 class="font-bold text-black mb-1.5 text-xs flex items-center gap-1"><i data-lucide="thumbs-up" class="w-3 h-3 text-green-600 print:text-black"></i> 評価された点</h4>
+                <p class="text-slate-700 leading-relaxed text-[11px] font-medium">${escapeHtml(item.feedback?.good_points)}</p>
+              </div>
+              <div>
+                <h4 class="font-bold text-black mb-1.5 text-xs flex items-center gap-1"><i data-lucide="message-square-dashed" class="w-3 h-3 text-orange-600 print:text-black"></i> 改善のアドバイス</h4>
+                <p class="text-slate-700 leading-relaxed text-[11px] font-medium">${escapeHtml(item.feedback?.advice)}</p>
+              </div>
+              <div class="col-span-1 md:col-span-2 bg-slate-50 print:bg-white p-3 border border-slate-200 rounded">
+                <h4 class="font-black text-black mb-1 text-[10px] tracking-wider uppercase text-slate-500">Critical Review (総合所見)</h4>
+                <p class="text-slate-900 text-xs italic font-bold leading-relaxed">${escapeHtml(item.feedback?.critical_review)}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 【原文】 -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold border-b border-slate-300 pb-1 mb-3 flex items-center gap-2 text-slate-600">
+               <i data-lucide="file-text" class="w-4 h-4"></i> スピーチ原文
+            </h3>
+            <!-- 印刷時に長くなりすぎないようフォントサイズと行間を調整 -->
+            <div class="p-5 bg-white border border-slate-300 rounded-lg text-black font-serif leading-[1.8] text-[12px] print:text-[11px] text-justify min-h-[200px]">
+              ${originalTextHtml}
+            </div>
+          </div>
+
+          <!-- 【教員用 最終判定欄】 -->
+          <div class="border-2 border-black p-3 bg-white mt-auto">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="font-black text-xs tracking-widest bg-black text-white px-3 py-1 inline-block">教員 最終審査欄</h3>
+              <div class="flex gap-2">
+                <div class="border border-slate-300 w-12 h-12 flex items-center justify-center text-[8px] text-slate-400">審査員印</div>
+                <div class="border border-slate-300 w-12 h-12 flex items-center justify-center text-[8px] text-slate-400">管理職印</div>
+              </div>
+            </div>
+            
+            <table class="w-full border-collapse border border-black text-[11px]">
+              <tr>
+                <td class="border border-black p-2 bg-slate-100 print:bg-slate-200 text-center font-bold w-1/4">人権・プライバシー</td>
+                <td class="border border-black p-2 w-3/4">
+                  <div class="flex gap-6 font-bold">
+                    <label class="flex items-center gap-1"><div class="w-3 h-3 border border-black bg-white"></div> 問題なし</label>
+                    <label class="flex items-center gap-1"><div class="w-3 h-3 border border-black bg-white"></div> 修正が必要</label>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black p-2 bg-slate-100 print:bg-slate-200 text-center font-bold">最終判定</td>
+                <td class="border border-black p-2">
+                  <div class="flex gap-6 font-bold">
+                    <label class="flex items-center gap-1"><div class="w-3 h-3 border border-black bg-white"></div> 学校代表</label>
+                    <label class="flex items-center gap-1"><div class="w-3 h-3 border border-black bg-white"></div> 学年代表</label>
+                    <label class="flex items-center gap-1"><div class="w-3 h-3 border border-black bg-white"></div> 選外</label>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" class="border border-black p-2 h-16 align-top">
+                  <span class="text-[9px] text-slate-500 font-bold">特記事項・修正指示（手書き）：</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `;
+        
+        container.appendChild(sheet);
+      });
+    }
+
+    // --- モーダル制御 ---
+    function showModal(index) {
+      const item = dataList[index];
+      if(!item) return;
+
+      document.getElementById('modalName').textContent = item.student_name;
+      const textEl = document.getElementById('modalText');
+      if (item.original_text) {
+        textEl.innerHTML = escapeHtml(item.original_text).replace(/\n/g, '<br/>');
+      } else {
+        textEl.innerHTML = '<span class="text-slate-400 italic text-center block mt-10">原文データが含まれていません。</span>';
+      }
+
+      const modal = document.getElementById('textModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.classList.add('modal-open');
+    }
+
+    function hideModal() {
+      const modal = document.getElementById('textModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.classList.remove('modal-open');
+    }
+  </script>
+</body>
+</html>
