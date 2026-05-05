@@ -15,18 +15,16 @@
     @media print {
       @page { 
         size: A4; 
-        margin: 15mm; /* A4用紙の標準的な余白 */
+        margin: 15mm; 
       }
       body { 
         background-color: white !important; 
         -webkit-print-color-adjust: exact; 
         print-color-adjust: exact; 
       }
-      .print-hidden { 
-        display: none !important; 
-      }
+      .print-hidden { display: none !important; }
       .print-page { 
-        page-break-after: always !important; /* 確実に改ページ */
+        page-break-after: always !important; 
         break-after: page !important;
         position: relative;
         width: 100%;
@@ -36,14 +34,11 @@
         box-shadow: none !important;
         border: none !important;
       }
-      /* 最後のページは改ページしない */
       .print-page:last-child {
         page-break-after: auto !important;
         break-after: auto !important;
       }
     }
-    
-    /* モーダル表示時の背景固定 */
     body.modal-open { overflow: hidden; }
   </style>
 </head>
@@ -74,12 +69,28 @@
       </div>
     </header>
 
-    <!-- データ投入エリア -->
+    <!-- STEP 1: AIプロンプトエリア -->
+    <div class="mb-6 shadow-md bg-white rounded-xl overflow-hidden print-hidden border border-slate-200">
+      <div class="bg-indigo-600 h-1 w-full"></div>
+      <div class="p-4 md:p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-700 flex items-center gap-2">
+            <i data-lucide="bot" class="w-5 h-5 text-indigo-600"></i> STEP 1: AI審査プロンプトのコピー
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">このプロンプトをコピーしてChatGPTやGemini等に貼り付け、続けて児童の原稿を入力させてください。</p>
+        </div>
+        <button id="copyPromptBtn" onclick="copyPrompt()" class="w-full md:w-auto flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 px-6 py-2.5 rounded-lg hover:bg-indigo-100 transition font-bold text-sm shadow-sm">
+          <i data-lucide="copy" class="w-4 h-4"></i> プロンプトをコピー
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 2: データ投入エリア -->
     <div class="mb-8 shadow-xl bg-white rounded-xl overflow-hidden print-hidden">
       <div class="bg-blue-600 h-2 w-full"></div>
-      <div class="p-4 md:p-6 pb-2 border-b border-slate-100 flex justify-between items-center">
-        <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
-          <i data-lucide="database" class="w-5 h-5 text-blue-600"></i> AI評価データ（JSON）インポート
+      <div class="p-4 md:p-5 pb-2 border-b border-slate-100 flex justify-between items-center">
+        <h2 class="text-base font-bold text-slate-700 flex items-center gap-2">
+          <i data-lucide="database" class="w-5 h-5 text-blue-600"></i> STEP 2: AI評価データ（JSON）インポート
         </h2>
         <span id="importMessage" class="text-sm font-bold text-green-600 transition-opacity duration-500 opacity-0"></span>
       </div>
@@ -87,7 +98,7 @@
         <div id="errorMessage" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold flex items-center gap-2">
           <i data-lucide="alert-circle" class="w-4 h-4"></i> <span id="errorText"></span>
         </div>
-        <textarea id="jsonInput" class="w-full h-32 p-4 bg-white border border-slate-300 font-mono text-xs rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-400 transition-all text-slate-700 shadow-inner" placeholder="【使い方】AIが出力したJSONテキストをここに貼り付けてください（複数人分一括OK）。Markdownタグが付いたままでも自動で処理されます。"></textarea>
+        <textarea id="jsonInput" class="w-full h-32 p-4 bg-white border border-slate-300 font-mono text-xs rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-400 transition-all text-slate-700 shadow-inner" placeholder="AIから返ってきたJSONテキストをここに貼り付けてください（複数人分一括OK）"></textarea>
         <button id="importBtn" onclick="handleLoadData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
           <i data-lucide="check-circle" class="w-5 h-5"></i> データを解析してリストに反映
         </button>
@@ -96,7 +107,6 @@
   </div>
 
   <div class="max-w-7xl mx-auto">
-    
     <!-- 空の状態 -->
     <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-slate-400 print-hidden bg-white rounded-2xl border border-dashed border-slate-300">
       <i data-lucide="file-json-2" class="w-16 h-16 mb-4 opacity-30"></i>
@@ -105,7 +115,6 @@
 
     <!-- コンテンツエリア -->
     <div id="contentArea" class="hidden space-y-8 print:space-y-0">
-      
       <!-- ランキング一覧（画面用のみ） -->
       <div class="print-hidden shadow-lg bg-white rounded-2xl overflow-hidden border border-slate-200">
         <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
@@ -123,18 +132,13 @@
                 <th class="p-4">AI Risk</th>
               </tr>
             </thead>
-            <tbody id="rankingTableBody">
-              <!-- JSで挿入 -->
-            </tbody>
+            <tbody id="rankingTableBody"></tbody>
           </table>
         </div>
       </div>
 
       <!-- 個人別 審査用シートコンテナ（印刷時はここだけが出力される） -->
-      <div id="sheetsContainer" class="space-y-12 print:space-y-0 print:block">
-        <!-- JSで挿入 -->
-      </div>
-      
+      <div id="sheetsContainer" class="space-y-12 print:space-y-0 print:block"></div>
     </div>
   </div>
 
@@ -158,10 +162,8 @@
   </div>
 
   <script>
-    // --- 状態管理 ---
     let dataList = [];
     
-    // --- 初期化 ---
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       const input = document.getElementById('jsonInput');
@@ -170,6 +172,97 @@
         btn.disabled = input.value.trim() === '';
       });
     });
+
+    // --- プロンプト コピー機能 ---
+    function copyPrompt() {
+      // テンプレートリテラルでプロンプト全文を保持（エスケープ文字に注意）
+      const promptText = `# Role
+あなたは「よこはま子ども国際平和スピーチコンテスト」の最高審査員です。過去の市長賞受賞者のスピーチ（長崎での原体験や、身近な障害者との対話から平和の定義を見出した作品など）を熟知しています。
+校内代表、ひいては「市本選で勝てる代表」を選出するため、極めて厳格かつ深い洞察に基づく基準で原稿を精査します。
+
+# Task
+入力されたスピーチ原稿を精読し、指定されたJSON形式のみで評価結果を出力してください。
+
+# 審査規準（合計300点満点）
+
+## 1. 共通テーマ・視点（100点）
+- 平和の再定義 (30点): 単なる「戦争反対」ではなく、体験を通して得た独自の「平和の定義」が語られているか。
+- SDGsとの結びつき (30点): 目標番号をただ挙げただけでなく、スピーチ全体の哲学とSDGsの理念が深く合致しているか。
+- 遠い世界と日常の接続 (40点): 遠い国の出来事（空爆、飢餓など）と、自分自身の日常（学校生活、身近な出会い）が乖離せず、一本の線で繋がっているか。
+
+## 2. 具体的な意見や方策（100点）
+- 一次情報と心の動き (50点): ネットや本の知識（二次情報）ではなく、「自分が直接見聞きした体験（原体験）」と、その時の「自分自身の心の動き（葛藤や気づき）」が鮮明に描かれているか。【※最重要項目】
+- 等身大のアクション (30点): 壮大すぎる夢物語ではなく、「今の自分だからこそできる具体的な行動（マスクを外して目を見て話す、など）」が示されているか。
+- 実現性と波及力 (20点): その小さな行動が、どのように大きな平和へと繋がっていくかの道筋が見えるか。
+
+## 3. スピーチの組立・伝える力（100点）
+- 共感を呼ぶストーリー (40点): 聞き手の情景を喚起し、心が動かされるストーリー構成になっているか（劇的な対比や、正直な感情の吐露など）。
+- 適切な言葉選び (30点): 借り物の大人びた言葉ではなく、その年齢らしい真っ直ぐで誠実な言葉で語られているか。
+- 形式・ルール遵守 (30点): 「です・ます体」の完遂、3分以内（約900〜1200文字）の適正量。
+
+# ⚠️ Output Constraints (CRITICAL)
+以下のルールを絶対に守ってください。違反するとシステムがクラッシュします。
+1. JSON Only: 挨拶、解説、Markdownのコードブロックは一切出力しないでください。 { から始まり } で終わる純粋なJSONテキストのみを出力。
+2. Escape Characters: 文字列内の改行は \\n に、ダブルクォーテーションは \\" に必ずエスケープしてください。
+3. No Trailing Commas: 配列やオブジェクトの最後の要素の後にカンマ , を入れないでください。
+
+# Expected JSON Output Format
+{
+  "student_name": "氏名",
+  "title": "題名",
+  "sdgs_goal": "関連目標の番号(例: 17)",
+  "original_text": "読み取ったスピーチの全文。改行は\\nで処理すること。",
+  "scores": {
+    "theme": 0,
+    "action": 0,
+    "expression": 0,
+    "total": 0
+  },
+  "detailed_eval": {
+    "interpretation": "日常との接続に関する講評(30点満点中)",
+    "originality": "原体験(一次情報)の強さと心の動きに関する講評(40点満点中)",
+    "feasibility": "等身大のアクションに関する講評(20点満点中)"
+  },
+  "feedback": {
+    "critical_review": "審査員としての厳しい総合評価（市長賞レベルに達するための課題など）",
+    "good_points": "児童へのポジティブなフィードバック（体験や感情の描写を褒める）",
+    "advice": "修正すべき具体的な弱点（より具体化すべきエピソードなど）"
+  },
+  "status": {
+    "ai_risk": "Low/Medium/High",
+    "strict_rank": "代表候補/次点/再考",
+    "time_estimate": "3分15秒（目安）"
+  }
+}
+
+---
+【これより下に入力された原稿を解析し、上記のJSONを出力せよ】`;
+
+      const textArea = document.createElement("textarea");
+      textArea.value = promptText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        const btn = document.getElementById('copyPromptBtn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> コピー完了';
+        btn.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+        btn.classList.remove('bg-indigo-50', 'text-indigo-700', 'border-indigo-200');
+        lucide.createIcons();
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHtml;
+          btn.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
+          btn.classList.add('bg-indigo-50', 'text-indigo-700', 'border-indigo-200');
+          lucide.createIcons();
+        }, 2000);
+      } catch (err) {
+        alert("コピーに失敗しました。");
+      }
+      document.body.removeChild(textArea);
+    }
 
     // --- ワークシートダウンロード機能 ---
     function downloadWorksheet() {
@@ -214,10 +307,8 @@
         let input = inputEl.value.trim();
         if (!input) return;
 
-        // Markdownタグの除去
         input = input.replace(/```json/gi, '').replace(/```/g, '').trim();
 
-        // 末尾カンマの除去
         const cleanJsonStr = (str) => {
           return str.replace(/,\s*([\]}])/g, '$1');
         };
@@ -229,7 +320,6 @@
           const parsed = JSON.parse(cleanedFullInput);
           newItems = Array.isArray(parsed) ? parsed : [parsed];
         } catch (e) {
-          // 個別のブロック抽出（複数人のデータを一気に貼った場合のフォールバック）
           const jsonBlocks = input.match(/\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/g);
           if (jsonBlocks) {
             newItems = jsonBlocks.map(block => {
@@ -250,7 +340,7 @@
         let updatedCount = 0;
 
         newItems.forEach(item => {
-          if (!item.student_name) return; // 名前がないデータは無視
+          if (!item.student_name) return;
           const idx = dataList.findIndex(d => d.student_name === item.student_name);
           if (idx > -1) {
             dataList[idx] = item;
@@ -261,11 +351,14 @@
           }
         });
 
-        // スコア降順でソート
         dataList.sort((a, b) => (b.scores?.total || 0) - (a.scores?.total || 0));
         
         renderUI();
-        showImportMessage(`${addedCount}件を追加、${updatedCount}件を更新しました。`);
+        
+        const msgEl = document.getElementById('importMessage');
+        msgEl.textContent = `${addedCount}件を追加、${updatedCount}件を更新しました。`;
+        msgEl.classList.remove('opacity-0');
+        setTimeout(() => msgEl.classList.add('opacity-0'), 4000);
         
         inputEl.value = '';
         btn.disabled = true;
@@ -287,16 +380,6 @@
         renderUI();
         document.getElementById('errorMessage').classList.add('hidden');
       }
-    }
-
-    // --- トーストメッセージ ---
-    function showImportMessage(msg) {
-      const el = document.getElementById('importMessage');
-      el.textContent = msg;
-      el.classList.remove('opacity-0');
-      setTimeout(() => {
-        el.classList.add('opacity-0');
-      }, 4000);
     }
 
     // --- ユーティリティ ---
@@ -330,13 +413,10 @@
 
       emptyState.classList.add('hidden');
       contentArea.classList.remove('hidden');
-      
       document.getElementById('totalCount').textContent = `Total: ${dataList.length}名`;
 
       renderRankingTable();
       renderSheets();
-      
-      // アイコンの再描画
       lucide.createIcons();
     }
 
@@ -347,12 +427,10 @@
       dataList.forEach((item, i) => {
         const rankStr = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
         const rowClass = i === 0 ? 'bg-yellow-50/20' : 'bg-white';
+        const shortReview = escapeHtml(item.feedback?.critical_review || '').substring(0, 40) + '...';
         
         const tr = document.createElement('tr');
         tr.className = `border-b border-slate-100 hover:bg-blue-50/30 transition ${rowClass}`;
-        
-        const shortReview = escapeHtml(item.feedback?.critical_review || '').substring(0, 40) + '...';
-
         tr.innerHTML = `
           <td class="p-4 font-black text-lg text-slate-500">${rankStr}</td>
           <td class="p-4">
@@ -376,24 +454,21 @@
       });
     }
 
-    // --- PDF印刷用の1ページごとのシート生成 ---
+    // --- PDF印刷用 シート生成 ---
     function renderSheets() {
       const container = document.getElementById('sheetsContainer');
       container.innerHTML = '';
 
       dataList.forEach((item, i) => {
         const sheet = document.createElement('div');
-        // print-page クラスで印刷時に必ず独立した1ページになるようにする
         sheet.className = "print-page bg-white p-8 rounded-2xl shadow-xl border border-slate-200 relative";
         
-        // 原文フォーマット（改行を <br> に変換）
-        let originalTextHtml = '<span class="text-slate-400 italic text-center block mt-10">原文データがありません。プロンプトを更新して再解析してください。</span>';
+        let originalTextHtml = '<span class="text-slate-400 italic text-center block mt-10">原文データがありません。</span>';
         if (item.original_text) {
           originalTextHtml = escapeHtml(item.original_text).replace(/\n/g, '<br/>');
         }
 
         sheet.innerHTML = `
-          <!-- 【印刷用 公式ヘッダー】 -->
           <div class="border-b-[3px] border-black pb-3 mb-5 flex justify-between items-end">
             <div>
               <p class="text-xs font-bold text-slate-600 tracking-widest mb-1">令和8年度 よこはま子ども国際平和スピーチコンテスト</p>
@@ -404,9 +479,7 @@
             </div>
           </div>
 
-          <!-- 【児童情報 ＆ AIスコア】 -->
           <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <!-- 基本情報 -->
             <div class="flex-1 bg-white border border-slate-300 p-4 rounded-lg shadow-sm print:shadow-none">
               <div class="flex items-center gap-4 mb-3 pb-3 border-b border-dotted border-slate-300">
                 <div class="w-16 text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded text-center">氏名</div>
@@ -422,7 +495,6 @@
               </div>
             </div>
 
-            <!-- AI一次スコア -->
             <div class="w-full md:w-56 border-2 border-slate-800 p-3 rounded-lg bg-slate-50 print:bg-white flex flex-col justify-center">
               <div class="text-center mb-1">
                 <span class="text-[10px] font-black text-slate-800 tracking-widest">AI一次評価（参考値）</span>
@@ -447,7 +519,6 @@
             </div>
           </div>
 
-          <!-- 【評価サマリー（AI）】 -->
           <div class="mb-6 border border-slate-300 rounded-lg overflow-hidden shadow-sm print:shadow-none">
             <div class="bg-slate-800 print:bg-slate-200 print:text-black text-white p-1.5 border-b border-slate-300 font-bold text-[11px] text-center tracking-widest">
               AI審査員 講評（強みと課題）
@@ -468,18 +539,15 @@
             </div>
           </div>
 
-          <!-- 【原文】 -->
           <div class="mb-6">
             <h3 class="text-xs font-bold border-b border-slate-300 pb-1 mb-3 flex items-center gap-2 text-slate-600">
                <i data-lucide="file-text" class="w-4 h-4"></i> スピーチ原文
             </h3>
-            <!-- 印刷時に長くなりすぎないようフォントサイズと行間を調整 -->
             <div class="p-5 bg-white border border-slate-300 rounded-lg text-black font-serif leading-[1.8] text-[12px] print:text-[11px] text-justify min-h-[200px]">
               ${originalTextHtml}
             </div>
           </div>
 
-          <!-- 【教員用 最終判定欄】 -->
           <div class="border-2 border-black p-3 bg-white mt-auto">
             <div class="flex justify-between items-center mb-3">
               <h3 class="font-black text-xs tracking-widest bg-black text-white px-3 py-1 inline-block">教員 最終審査欄</h3>
